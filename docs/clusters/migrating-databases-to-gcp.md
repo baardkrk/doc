@@ -85,16 +85,27 @@ Configure the project id \(find project id with `gcloud projects list --filter t
 gcloud config set project <project id>
 ```
 
+Add the following roles to your user:
+- `roles/cloudsql.admin`
+- `roles/iam.securityAdmin`
+- `roles/firebase.developViewer`
+- `roles/cloudbuild.builds.builder`
+
+Use this command to temporarily add each role to your user for one hour:
+```text
+gcloud projects add-iam-policy-binding <PROJECT_ID> --member=user:<FIRSTNAME>.<LASTNAME>@nav.no --role=<ROLE_NAME> --condition="expression=request.time < timestamp('$(date -v '+1H' -u +'%Y-%m-%dT%H:%M:%SZ')'),title=temp_access"
+```
+
 Create GCP bucket:
 
 ```text
 gsutil mb -l europe-north1 gs://<bucket name>
 ```
 
-Find the GCP service account e-mail \(the instance id is specified in your `nais.yaml` file\)
+Find the GCP service account e-mail \(the instance id is the name of your application, specified in your `nais.yaml` file\)
 
 ```text
-gcloud sql instances describe <CloudSQL instance id> | yq r - serviceAccountEmailAddress
+gcloud sql instances describe <CloudSQL instance id> | grep serviceAccountEmailAddress
 ```
 
 Set the objectAdmin role for the bucket \(with the previous e-mail\)
@@ -114,6 +125,11 @@ Import the dump into the GCP postgreSQL database
 ```text
 gcloud sql import sql <Cloud SQL instance id> gs://<bucket name>/dump.sql.gz --database=<database instance name> --user=<database instance user name>
 ```
+`<database instance name>` is the name given to the database in your `nais.yaml` file, while you can find the user with
+```text
+gcloud sql users list --instance=<Cloud SQL instance id>
+```
+Usually, the user has the same name as the `<Cloud SQL instance id>`.
 
 Verify that the application is behaving as expected and that the data in the new database is correct. Finally we need to switch loadbalancer to route to the GCP application instead of the on-premise equivalent.
 
